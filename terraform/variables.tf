@@ -10,7 +10,7 @@ variable "instance_type" {
 
 variable "ami_id" {
   description = "Ubuntu AMI ID"
-  default     = "ami-0f5ee92e2d63afc18"
+  default     = "ami-0ec10929233384c7f"
 }
 
 variable "key_name" {
