@@ -44,6 +44,6 @@ resource "aws_instance" "jenkins" {
   }
 
   provisioner "local-exec" {
-    command = "sleep 60 && ansible-playbook -i '${self.public_ip},' --private-key ../keys/ansible-key -u ubuntu ../ansible/jenkins.yml"
-  }
+  command = "sleep 60 && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${self.public_ip},' --private-key ../keys/ansible-key -u ubuntu ../ansible/jenkins.yml"
+}
 }
