@@ -13,16 +13,15 @@
         name: openjdk-17-jdk
         state: present
 
-    - name: Add Jenkins key
-      shell: |
-        curl -fsSL https://pkg.jenkins.io/debian/jenkins.io.key | tee \
-        /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+    - name: Add Jenkins GPG key
+      ansible.builtin.get_url:
+        url: https://pkg.jenkins.io/debian/jenkins.io-2023.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
 
-    - name: Add Jenkins repo
-      shell: |
-        echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
-        https://pkg.jenkins.io/debian binary/ | tee \
-        /etc/apt/sources.list.d/jenkins.list > /dev/null
+    - name: Add Jenkins repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian binary/"
+        state: present
 
     - name: Install Jenkins
       apt:
