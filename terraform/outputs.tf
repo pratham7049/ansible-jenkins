@@ -1,4 +1,9 @@
-output "alb_dns_name" {
-  description = "DNS name of the application load balancer"
-  value       = module.alb.alb_dns_name
+output "eks_cluster_endpoint" {
+  description = "EKS Cluster Control Plane endpoint"
+  value       = module.eks.cluster_endpoint
+}
+
+output "eks_cluster_name" {
+  description = "The name of the EKS cluster"
+  value       = module.eks.cluster_name
 }

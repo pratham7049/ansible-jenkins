@@ -31,29 +31,29 @@ variable "availability_zones" {
 variable "project_name" {
   description = "Project name"
   type        = string
-  default     = "ecs-ec2-project"
+  default     = "eks-project"
 }
 
-variable "instance_type" {
-  description = "EC2 instance type"
-  type        = string
-  default     = "t3.micro"
+variable "instance_types" {
+  description = "EKS node instance types"
+  type        = list(string)
+  default     = ["t3.medium"]
 }
 
-variable "ecs_desired_capacity" {
+variable "eks_desired_capacity" {
   description = "Desired number of instances"
   type        = number
-  default     = 1
+  default     = 2
 }
 
-variable "ecs_min_size" {
+variable "eks_min_size" {
   description = "Minimum number of instances"
   type        = number
   default     = 1
 }
 
-variable "ecs_max_size" {
+variable "eks_max_size" {
   description = "Maximum number of instances"
   type        = number
-  default     = 2
+  default     = 3
 }

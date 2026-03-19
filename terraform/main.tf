@@ -22,28 +22,16 @@ module "iam" {
   project_name = var.project_name
 }
 
-module "alb" {
-  source            = "./modules/alb"
-  vpc_id            = module.vpc.vpc_id
-  public_subnet_ids = module.vpc.public_subnet_ids
-  alb_sg_id         = module.security.alb_sg_id
-  project_name      = var.project_name
-}
-
-module "ecs" {
-  source                = "./modules/ecs"
-  project_name          = var.project_name
-  vpc_id                = module.vpc.vpc_id
-  private_subnet_ids    = module.vpc.private_subnet_ids
-  ecs_sg_id             = module.security.ecs_sg_id
-  target_group_arn      = module.alb.target_group_arn
-  listener_arn          = module.alb.listener_arn
-  instance_profile_name = module.iam.ecs_instance_profile_name
-  task_exec_role_arn    = module.iam.ecs_task_execution_role_arn
-  instance_type         = var.instance_type
-  desired_capacity      = var.ecs_desired_capacity
-  min_size              = var.ecs_min_size
-  max_size              = var.ecs_max_size
-
-  depends_on = [module.alb]
+module "eks" {
+  source           = "./modules/eks"
+  project_name     = var.project_name
+  subnet_ids       = module.vpc.private_subnet_ids
+  cluster_sg_id    = module.security.eks_cluster_sg_id
+  node_sg_id       = module.security.eks_nodes_sg_id
+  cluster_role_arn = module.iam.eks_cluster_role_arn
+  node_role_arn    = module.iam.eks_node_group_role_arn
+  instance_types   = var.instance_types
+  desired_capacity = var.eks_desired_capacity
+  min_size         = var.eks_min_size
+  max_size         = var.eks_max_size
 }

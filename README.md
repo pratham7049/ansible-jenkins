@@ -1,21 +1,20 @@
-# AWS ECS over EC2 Fully Modular Deployment
+# AWS EKS Modular Deployment
 
 ## 🚀 Overview
-This repository provisions a production-ready, highly available **Amazon Elastic Container Service (ECS)** cluster using the **EC2 Launch Type**.
+This repository provisions a production-ready, highly available **Amazon Elastic Kubernetes Service (EKS)** cluster natively on AWS.
 
 The entire infrastructure is orchestrated using **Terraform** in a strictly modular design following AWS best practices.
 
 ### 🏗️ Architecture Stack
-1. **Networking (`modules/vpc`)**: A fully Custom VPC (`jenkins-vpc`) spanning 2 Availability Zones, with 2 Public Subnets, 2 Private Subnets, an Internet Gateway, and a NAT Gateway.
-2. **Security (`modules/security`)**: Security groups enforcing strict traffic flow (Internet -> ALB -> ECS cluster).
-3. **Identity (`modules/iam`)**: Automatically provisions ECS Instance Profiles and Task Execution Roles.
-4. **Load Balancing (`modules/alb`)**: Provisions an Application Load Balancer (ALB), Target Group, and HTTP listener to route traffic to active containers.
-5. **Compute & Orchestration (`modules/ecs`)**: Provisions an ECS Cluster, an Auto Scaling Group (ASG) using the latest ECS-Optimized Amazon Linux 2 AMI, and deploys a sample NGINX Task Definition & Service.
+1. **Networking (`modules/vpc`)**: A fully Custom VPC (`jenkins-vpc`) spanning 2 Availability Zones, with 2 Public Subnets, 2 Private Subnets, an Internet Gateway, and a NAT Gateway. *Appropriately tagged for Native AWS Kubernetes LoadBalancers.*
+2. **Security (`modules/security`)**: Security groups enforcing strict traffic flow internally between the EKS Control plane and worker nodes.
+3. **Identity (`modules/iam`)**: Automatically provisions EKS Cluster Roles and EKS Node Group Roles.
+4. **Compute & Orchestration (`modules/eks`)**: Provisions the EKS Cluster (Control Plane) and a managed AWS EKS Node Group.
 
 ## 🛠️ Prerequisites
 1. **Terraform** installed on your local machine.
 2. **AWS CLI** configured (`aws configure`) with valid credentials.
-3. Your AWS IAM execution role must have permissions to create VPCs, ALBs, ASGs, SSM parameters, IAM Roles (`iam:CreateRole`), and ECS Clusters (`ecs:CreateCluster`).
+3. Your AWS IAM execution role must have permissions to create VPCs, EKS Clusters, Managed Node Groups, and IAM Roles.
 
 ## 🚀 Deployment Steps
 
@@ -33,7 +32,7 @@ terraform validate
 ```
 
 ### 3. Review Plan (Optional)
-Preview the 30+ AWS resources that will be provisioned.
+Preview the AWS resources that will be provisioned.
 ```bash
 terraform plan
 ```
@@ -44,15 +43,14 @@ Provision the architecture to your AWS account.
 terraform apply -auto-approve
 ```
 
-## 🌐 Accessing the Application
+## 🌐 Next Steps
 
-Once `terraform apply` finishes successfully, it will output a variable called `alb_dns_name`.
+Once `terraform apply` finishes successfully, it will output a variable called `eks_cluster_endpoint`. Update your local `kubeconfig` to authenticate and interact with your new cluster:
 
 ```bash
-# Example Output:
-alb_dns_name = "ecs-project-alb-123456789.us-east-1.elb.amazonaws.com"
+aws eks update-kubeconfig --region us-east-1 --name ecs-project-cluster
+kubectl get nodes
 ```
-Place that URL into your web browser. You should immediately see the default **Welcome to nginx!** webpage served directly from your ECS container instances!
 
 ## 🧹 Cleanup
 To avoid ongoing AWS charges, destroy the infrastructure when you are done:
