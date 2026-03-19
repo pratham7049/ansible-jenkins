@@ -15,7 +15,7 @@ variable "ami_id" {
 
 variable "key_name" {
   description = "Key pair name"
-  default     = "ansible-key"
+  default     = "jenkins-ansible-key"
 }
 
 variable "public_key_path" {
