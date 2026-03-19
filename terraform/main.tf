@@ -24,6 +24,20 @@ resource "aws_security_group" "jenkins_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  } 
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -43,7 +57,7 @@ resource "aws_instance" "jenkins" {
     Name = "Jenkins-Ansible"
   }
 
-  provisioner "local-exec" {
-  command = "sleep 60 && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${self.public_ip},' --private-key ../keys/ansible-key -u ubuntu ../ansible/jenkins.yml"
+provisioner "local-exec" {
+  command = "sleep 60 && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i '${self.public_ip},' --private-key ../keys/ansible-key -u ubuntu ../ansible/nginx.yml"
 }
 }
