@@ -65,13 +65,23 @@ sudo apt-get install -y terraform
 echo "Terraform installed successfully"
 
 # -------------------------------
-# Install Ansible
+# Install AWS CLI
 # -------------------------------
-echo "===== Installing Ansible ====="
+echo "===== Installing AWS CLI ====="
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+rm -rf aws awscliv2.zip
+echo "AWS CLI installed successfully"
 
-sudo apt-get install -y ansible
-
-echo "Ansible installed successfully"
+# -------------------------------
+# Install kubectl
+# -------------------------------
+echo "===== Installing kubectl ====="
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+rm kubectl
+echo "kubectl installed successfully"
 
 # -------------------------------
 # Verify installations
@@ -80,6 +90,7 @@ echo "===== Verifying installations ====="
 
 docker --version
 terraform -version
-ansible --version
+aws --version
+kubectl version --client
 
 echo "===== Setup Completed Successfully ====="
