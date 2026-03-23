@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: futureai-frontend
+  namespace: nginx
+  labels:
+    app: futureai-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: futureai-frontend
+  template:
+    metadata:
+      labels:
+        app: futureai-frontend
+    spec:
+      containers:
+      - name: futureai-frontend
+        image: pratham0412/futureai-frontend:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: futureai-frontend-service
+  namespace: nginx
+spec:
+  type: ClusterIP
+  selector:
+    app: futureai-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
