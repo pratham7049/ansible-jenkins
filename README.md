@@ -52,6 +52,20 @@ aws eks update-kubeconfig --region us-east-1 --name ecs-project-cluster
 kubectl get nodes
 ```
 
+### 🚢 Deploying Microservices
+
+After your cluster is authenticated, you can deploy the application workloads (Nginx proxy, frontend, and backend) into the cluster. See [k8s/README.md](./k8s/README.md) for full details, or run the following:
+
+```bash
+cd ../k8s
+kubectl apply -f nginx-namespace.yaml
+kubectl apply -f nginx-configmap.yaml
+kubectl apply -f futureai-backend.yaml
+kubectl apply -f futureai-frontend.yaml
+kubectl apply -f nginx-deployment.yaml
+kubectl apply -f nginx-service.yaml
+```
+
 ## 🧹 Cleanup
 To avoid ongoing AWS charges, destroy the infrastructure when you are done:
 ```bash

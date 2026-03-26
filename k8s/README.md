@@ -32,6 +32,41 @@ This standard Kubernetes setup uses **Nginx** as a central reverse proxy (functi
 
 ---
 
+## 🛠️ Configuration & Deployment Steps
+
+To configure and deploy this architecture to your Kubernetes cluster, run the following commands from this directory:
+
+1. **Create the Namespace**
+   ```bash
+   kubectl apply -f nginx-namespace.yaml
+   ```
+
+2. **Deploy the ConfigMap (Nginx Routing Rules)**
+   ```bash
+   kubectl apply -f nginx-configmap.yaml
+   ```
+
+3. **Deploy the Microservices (Backend and Frontend)**
+   ```bash
+   kubectl apply -f futureai-backend.yaml
+   kubectl apply -f futureai-frontend.yaml
+   ```
+
+4. **Deploy the Nginx Proxy and Service**
+   ```bash
+   kubectl apply -f nginx-deployment.yaml
+   kubectl apply -f nginx-service.yaml
+   ```
+
+5. **Verify the Deployment**
+   ```bash
+   kubectl get pods -n nginx
+   kubectl get svc -n nginx
+   ```
+   *Wait for the pods to be in the `Running` state. Use the `EXTERNAL-IP` of the `nginx-service` to access your application via browser.*
+
+---
+
 ## 🚀 How to Add New Microservices in the Future
 If you want to add a third microservice (e.g., `futureai-payments`), the process is incredibly straightforward:
 1. Create a `futureai-payments.yaml` file outlining its `Deployment` and a `ClusterIP` Service (just like the backend).
