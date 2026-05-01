@@ -1,0 +1,57 @@
+- name: Install K3s (Lightweight Kubernetes)
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Download and install K3s
+      shell: curl -sfL https://get.k3s.io | sh -
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Wait for K3s to be ready
+      wait_for:
+        path: /etc/rancher/k3s/k3s.yaml
+        state: present
+        timeout: 60
+
+    - name: Create .kube directory for ubuntu user
+      file:
+        path: "/home/ubuntu/.kube"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Copy k3s config to .kube/config
+      copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /home/ubuntu/.kube/config
+        remote_src: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+
+    - name: Update server address in kubeconfig
+      replace:
+        path: /home/ubuntu/.kube/config
+        regexp: '127.0.0.1'
+        replace: '{{ ansible_host | default(inventory_hostname) }}'
+
+    - name: Set KUBECONFIG environment variable in .bashrc
+      lineinfile:
+        path: /home/ubuntu/.bashrc
+        line: 'export KUBECONFIG=$HOME/.kube/config'
+        state: present
+
+    - name: Install kubectl (snap)
+      snap:
+        name: kubectl
+        classic: yes
+
+    - name: Verify K3s status
+      command: kubectl get nodes
+      register: k3s_status
+      changed_when: false
+
+    - debug:
+        var: k3s_status.stdout_lines
