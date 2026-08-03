@@ -1,34 +1,126 @@
-# Infrastructure Flow and Architecture
+# Enterprise AWS EKS Infrastructure & Kubernetes System Architecture
 
-This document describes the complete flow of how the infrastructure is provisioned, from preparing the local environment to deploying the final application on Kubernetes.
+This document presents the technical architecture, network topology, security model, and end-to-end traffic routing for the **Amazon EKS Infrastructure & Kubernetes Learning Platform**.
 
-## 1. High-Level Flow Diagram
+---
 
-![Infrastructure Flow Diagram](./architecture-diagram.png)
+## 1. High-Level Architecture Overview
 
-## 2. Detailed Component Breakdown
+The platform uses a two-tier architectural model:
+1. **Infrastructure Tier**: Provisioned with **Terraform**, establishing an isolated Multi-AZ AWS network, IAM security roles, managed EKS control plane, and EC2 node groups.
+2. **Platform & Workload Tier**: Orchestrated with **Kubernetes**, deploying application workloads, service discovery, auto-scaling, and native AWS Application Load Balancers via the AWS Load Balancer Controller.
 
-### Step 1: Local Environment Preparation (`install.sh`)
-The `install.sh` script prepares the machine where you run your deployments (such as an EC2 bastion host). It installs essential CLI tools:
-- **Docker**: For running or building containerized workloads.
-- **Terraform**: The Infrastructure as Code (IaC) tool used to interact with AWS APIs.
-- **AWS CLI**: To securely authenticate with your AWS account and fetch cluster credentials.
-- **kubectl**: The Kubernetes command-line tool, used to communicate with the EKS cluster to deploy applications.
+---
 
-### Step 2: Remote State Backend (`bootstrap/`)
-Terraform requires a place to store its "state" (a map of what it has created). Instead of storing this locally, we use a remote backend for safety and collaboration.
-- **S3 Bucket**: Securely stores the `terraform.tfstate` file with encryption and versioning.
-- **DynamoDB Table**: Provides a locking mechanism. When you run `terraform apply`, it locks the table so multiple users cannot apply changes simultaneously, preventing state corruption.
+## 2. Structural & Infrastructure Flow Diagrams
 
-### Step 3: Infrastructure Provisioning (`terraform/`)
-This is the core of the project. Terraform reads its `.tf` configurations and provisions a production-ready environment in a structured, modular way:
-- **`modules/vpc`**: Creates an isolated network (VPC) with Public subnets (for external traffic/LoadBalancers) and Private subnets (for the worker nodes). It also creates an Internet Gateway and NAT Gateway so private nodes can reach the internet securely without being exposed directly.
-- **`modules/security`**: Creates Security Groups (virtual firewalls) dictating what network traffic is allowed in and out of the cluster.
-- **`modules/iam`**: Sets up AWS Identity and Access Management (IAM) Roles to give the EKS control plane and worker nodes the exact declarative permissions they need to operate.
-- **`modules/eks`**: Provisions the actual Kubernetes control plane (managed by AWS) and spins up an Auto Scaling Group of EC2 instances (based on configured instance types) as worker nodes to run your containers.
+### Terraform Infrastructure Provisioning Flow
 
-### Step 4: Application Deployment (`k8s/`)
-Once the infrastructure is ready, we deploy our sample application using standard Kubernetes YAML manifests inside the `k8s/` folder.
-- **Namespace**: Creates an `nginx` namespace to logically isolate the application resources.
-- **Deployment**: Configures a ReplicaSet to ensure a specific number of Nginx pods are always running.
-- **Service**: Creates a service of `type: LoadBalancer`. In EKS, this automatically commands AWS to provision a Classic or Network Load Balancer that routes external internet traffic directly into the Nginx pod running in your cluster.
+```text
+               ┌─────────────────────────────────────────────────┐
+               │              Terraform CLI Engine               │
+               └────────────────────────┬────────────────────────┘
+                                        │
+                                        ▼
+               ┌─────────────────────────────────────────────────┐
+               │     Remote State Backend (S3 + DynamoDB)        │
+               └────────────────────────┬────────────────────────┘
+                                        │
+             ┌──────────────────────────┼──────────────────────────┐
+             ▼                          ▼                          ▼
+  ┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
+  │   1. VPC Module    │ ──> │ 2. Security Module │ ──> │   3. IAM Module    │
+  │ (Subnets/IGW/NAT)  │     │  (Security Groups) │     │ (Roles/IRSA/OIDC)  │
+  └────────────────────┘     └────────────────────┘     └─────────┬──────────┘
+                                                                  │
+                                                                  ▼
+                                                        ┌────────────────────┐
+                                                        │   4. EKS Module    │
+                                                        │ (Control & Nodes)  │
+                                                        └────────────────────┘
+```
+
+### End-to-End Application Traffic Flow
+
+```text
+                                [ Client / Internet ]
+                                         │
+                                         │ HTTP Port 80
+                                         ▼
+                 ┌───────────────────────────────────────────────┐
+                 │    AWS Application Load Balancer (ALB)        │
+                 │  Public Subnets (ap-south-1a / ap-south-1b)   │
+                 └───────────────────────┬───────────────────────┘
+                                         │
+                                         │ Targets (Direct Pod IP)
+                                         ▼
+                 ┌───────────────────────────────────────────────┐
+                 │       Kubernetes Ingress Resource             │
+                 │    (Managed by AWS Load Balancer Controller)  │
+                 └───────────────────────┬───────────────────────┘
+                                         │
+                                         │ Target Group Rule
+                                         ▼
+                 ┌───────────────────────────────────────────────┐
+                 │      Kubernetes Service (ClusterIP)           │
+                 │        Endpoint IP & DNS Resolution           │
+                 └───────────────────────┬───────────────────────┘
+                                         │
+                                         │ IPTables / VPC CNI Routing
+                                         ▼
+                 ┌───────────────────────────────────────────────┐
+                 │            Kubernetes Deployment              │
+                 └───────────────────────┬───────────────────────┘
+                                         │
+                         ┌───────────────┴───────────────┐
+                         ▼                               ▼
+                 ┌───────────────┐               ┌───────────────┐
+                 │ Pod 1 Container│               │ Pod 2 Container│
+                 │ Private Subnet│               │ Private Subnet│
+                 └───────────────┘               └───────────────┘
+```
+
+---
+
+## 3. Network & Security Topology (`ap-south-1`)
+
+### AWS VPC Subnet Layout
+
+```text
+AWS Region: ap-south-1 (Mumbai)
+VPC CIDR: 10.0.0.0/16
+
+├── Availability Zone 1: ap-south-1a
+│   ├── Public Subnet 1  (10.0.1.0/24)  ──> Internet Gateway (IGW)
+│   │   └── Tag: kubernetes.io/role/elb = 1
+│   └── Private Subnet 1 (10.0.10.0/24) ──> NAT Gateway 1
+│       └── Tag: kubernetes.io/role/internal-elb = 1
+│
+└── Availability Zone 2: ap-south-1b
+    ├── Public Subnet 2  (10.0.2.0/24)  ──> Internet Gateway (IGW)
+    │   └── Tag: kubernetes.io/role/elb = 1
+    └── Private Subnet 2 (10.0.20.0/24) ──> NAT Gateway 1
+        └── Tag: kubernetes.io/role/internal-elb = 1
+```
+
+---
+
+## 4. Component Technical Matrix
+
+| Component | Technology | AWS / K8s Resource | Function |
+| :--- | :--- | :--- | :--- |
+| **State Storage** | Terraform | `aws_s3_bucket`, `aws_dynamodb_table` | Encrypted state management and concurrent state locking. |
+| **Networking** | Terraform | `aws_vpc`, `aws_subnet`, `aws_nat_gateway` | Multi-AZ network isolation. |
+| **Security Groups** | Terraform | `aws_security_group` | Ingress/Egress stateful firewalls for control plane & nodes. |
+| **Identity & Access** | Terraform | `aws_iam_role`, OIDC Provider | Service accounts (IRSA) and node execution policies. |
+| **Kubernetes Compute**| Terraform | `aws_eks_cluster`, `aws_eks_node_group` | Managed control plane and EC2 auto-scaling worker nodes. |
+| **Ingress Controller** | K8s Manifest | AWS Load Balancer Controller | Dynamically creates AWS ALBs based on Ingress YAML rules. |
+| **Autoscaling** | K8s Manifest | `HorizontalPodAutoscaler` | Telemetry-driven pod scaling (CPU/Memory triggers). |
+
+---
+
+## 5. Security & Isolation Guarantees
+
+1. **Private Subnet Execution**: All EKS worker nodes run in **Private Subnets**. They carry no public IPv4 addresses and can only communicate outward via NAT Gateways.
+2. **Least-Privilege IAM Roles**: Control plane, worker nodes, and AWS Load Balancer Controller use dedicated IAM roles adhering to least-privilege boundaries.
+3. **State Encryption**: Remote S3 state files are encrypted using AWS SSE-S3 AES-256 encryption.
